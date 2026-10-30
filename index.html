@@ -2,27 +2,179 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>學生互動解題畫布 - Gemini 分步引導助教 (類似題劃線版)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>學生互動解題畫布 - Gemini 分步引導助教 (支援 PDF 匯出)</title>
+  <!-- 引入 html2pdf.js 用於一鍵輸出 PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
-    body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #f4f7f6; }
-    #canvas-container { border: 2px solid #333; border-radius: 8px; background: #fff; }
-    canvas { cursor: crosshair; display: block; }
-    .chat-panel { width: 420px; display: flex; flex-direction: column; gap: 10px; height: 610px; }
-    .toolbar { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    #chat-history { flex: 1; padding: 12px; background: #fff; border: 1px solid #ccc; border-radius: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .msg { padding: 8px 12px; border-radius: 6px; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
-    .msg.user { background: #e3f2fd; align-self: flex-end; max-width: 85%; }
-    .msg.model { background: #f1f8e9; align-self: flex-start; max-width: 90%; }
-    button, label.btn { padding: 6px 12px; cursor: pointer; border-radius: 4px; border: 1px solid #666; background: #efefef; font-size: 14px; }
-    textarea { width: 100%; height: 70px; padding: 8px; border-radius: 4px; resize: none; box-sizing: border-box; }
-    .hint { font-size: 12px; color: #666; margin-top: 4px; }
-    .token-badge { font-size: 11px; background: #e0e0e0; padding: 2px 6px; border-radius: 4px; color: #333; align-self: flex-start; }
-    .color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; padding: 0; box-sizing: border-box; }
-    .color-btn.active { border-color: #000; transform: scale(1.1); }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      background: #f4f7f6;
+      margin: 0;
+      color: #333;
+    }
+    h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    #canvas-container {
+      border: 2px solid #333;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    canvas {
+      cursor: crosshair;
+      display: block;
+      border-radius: 6px;
+    }
+    .chat-panel {
+      width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 630px;
+    }
+    .toolbar {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    #chat-history {
+      flex: 1;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg {
+      padding: 8px 12px;
+      border-radius: 6px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      font-size: 14px;
+      word-break: break-word;
+    }
+    .msg.user {
+      background: #e3f2fd;
+      align-self: flex-end;
+      max-width: 85%;
+      border-bottom-right-radius: 2px;
+    }
+    .msg.model {
+      background: #f1f8e9;
+      align-self: flex-start;
+      max-width: 90%;
+      border-bottom-left-radius: 2px;
+    }
+    button, label.btn {
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid #666;
+      background: #efefef;
+      font-size: 13px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    button:hover, label.btn:hover {
+      background: #e0e0e0;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    textarea {
+      width: 100%;
+      height: 70px;
+      padding: 8px;
+      border-radius: 4px;
+      resize: none;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      font-family: inherit;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #2196f3;
+    }
+    .hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+    }
+    .token-badge {
+      font-size: 11px;
+      background: #e0e0e0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #333;
+      align-self: flex-start;
+      margin-left: 6px;
+    }
+    .color-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid #ccc;
+      cursor: pointer;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .color-btn.active {
+      border-color: #000;
+      transform: scale(1.1);
+    }
     
-    .api-key-box { background: #fff3cd; border: 1px solid #ffeba8; padding: 8px 12px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
-    .api-key-box input { flex: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-    .action-btn { background: #e8f5e9; border-color: #81c784; font-weight: bold; }
+    .api-key-box {
+      background: #fff3cd;
+      border: 1px solid #ffeba8;
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .api-key-box input {
+      flex: 1;
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .action-btn {
+      background: #e8f5e9;
+      border-color: #81c784;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    .pdf-btn {
+      background: #e1f5fe;
+      border-color: #81d4fa;
+      font-weight: bold;
+      color: #0277bd;
+    }
+
+    /* PDF 匯出專用隱藏範本樣式 */
+    #pdf-template {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -43,7 +195,7 @@
       <button class="color-btn" style="background: #ffffff; border-color: #999;" onclick="setColor('#ffffff', this)" title="橡皮擦 (白色)"></button>
       
       <span style="margin-left: 8px;">粗細：</span>
-      <select id="lineWidthSelect" onchange="setLineWidth(this.value)">
+      <select id="lineWidthSelect" onchange="setLineWidth(this.value)" style="padding: 4px; border-radius: 4px;">
         <option value="2">細</option>
         <option value="4" selected>中</option>
         <option value="8">粗</option>
@@ -61,7 +213,7 @@
 
   <!-- 右側：AI 提問與對話歷史面板 -->
   <div class="chat-panel">
-    <h3>Gemini 陪讀助教 <span class="token-badge">🎯 分步引導模式</span></h3>
+    <h3>電子電路助教系統 <span class="token-badge">🎯 分步引導模式</span></h3>
     
     <div class="api-key-box">
       <input type="password" id="apiKeyInput" placeholder="請貼上你的 Gemini API Key">
@@ -75,7 +227,8 @@
     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
       <button onclick="askGemini()" id="sendBtn" style="flex: 2;">發送訊息與畫布</button>
       <button onclick="generateSimilarQuestion()" class="action-btn" style="flex: 2;">🎲 產生類似題</button>
-      <button onclick="resetConversation()" style="background: #ffebee;">重設紀錄</button>
+      <button onclick="exportToPDF()" class="pdf-btn" style="flex: 2;">📄 輸出 PDF 紀錄</button>
+      <button onclick="resetConversation()" style="background: #ffebee; border-color: #ef9a9a; color: #c62828;">重設紀錄</button>
     </div>
   </div>
 
@@ -286,17 +439,13 @@
           "1. 回應中的數學公式與符號，一律使用 Unicode 純文字數學符號（例如：1/3、√x、x²、x₁、π、θ、±、≠、≤、≥）。\n" +
           "2. 絕對不可以使用 LaTeX 語法（嚴禁使用反斜線、美金符號、frac、sqrt 等語法）。";
 
-        var requestBody = {
-          system_instruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: payloadContents
-        };
-
         var response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=" + userApiKey, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: payloadContents
+          })
         });
 
         var data = await response.json();
@@ -324,6 +473,86 @@
 
     function generateSimilarQuestion() {
       askGemini("請參考目前畫布上的電路/題目圖形結構，為我出一題替換了參數的類似練習題。請在說明新參數後，提示我可用白色畫筆塗改原圖數字，並問我第一步該如何開始思考。");
+    }
+
+    /**
+     * 一鍵輸出 PDF 功能
+     */
+    function exportToPDF() {
+      // 取得歷史訊息
+      var historyNodes = document.querySelectorAll('#chat-history .msg');
+      if (historyNodes.length === 0) {
+        alert("目前沒有可輸出的對話紀錄！");
+        return;
+      }
+
+      // 建立包含排版格式的臨時 HTML DOM
+      var pdfWrapper = document.createElement('div');
+      pdfWrapper.style.padding = '20px';
+      pdfWrapper.style.fontFamily = 'Arial, sans-serif';
+      pdfWrapper.style.color = '#333';
+      pdfWrapper.style.backgroundColor = '#fff';
+
+      // 標題與時間
+      var now = new Date();
+      var timeStr = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate() + ' ' + 
+                     now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+      var headerHtml = '<div style="border-bottom: 2px solid #2196f3; padding-bottom: 10px; margin-bottom: 15px;">' +
+        '<h1 style="margin:0; font-size: 22px; color: #1976d2;"> Gemini 陪讀助教 - 學習問答紀錄</h1>' +
+        '<p style="margin:5px 0 0 0; font-size: 12px; color: #666;">輸出時間：' + timeStr + '</p>' +
+        '</div>';
+
+      // 畫布當前圖像擷取
+      var canvasImgData = canvas.toDataURL('image/png');
+      var canvasHtml = '<div style="margin-bottom: 20px;">' +
+        '<h3 style="font-size: 15px; margin-bottom: 8px; color: #444;">當前題目畫布：</h3>' +
+        '<div style="text-align: center; border: 1px solid #ddd; padding: 8px; border-radius: 6px; background: #fafafa;">' +
+        '<img src="' + canvasImgData + '" style="max-width: 100%; height: auto; max-height: 350px; border-radius: 4px;">' +
+        '</div></div>';
+
+      // 對話歷史
+      var historyHtml = '<div><h3 style="font-size: 15px; margin-bottom: 10px; color: #444;">對話討論紀錄：</h3>';
+      
+      historyNodes.forEach(function(node) {
+        var isUser = node.classList.contains('user');
+        var roleLabel = isUser ? '👤 學生：' : '🤖 AI 助教：';
+        var bgColor = isUser ? '#e3f2fd' : '#f1f8e9';
+        var align = isUser ? 'right' : 'left';
+        var textColor = '#222';
+
+        historyHtml += '<div style="margin-bottom: 12px; clear: both;">' +
+          '<div style="font-weight: bold; font-size: 12px; margin-bottom: 3px; color: #555;">' + roleLabel + '</div>' +
+          '<div style="background-color: ' + bgColor + '; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; display: inline-block; max-width: 95%; text-align: left;">' +
+          escapeHtml(node.innerText) +
+          '</div></div>';
+      });
+
+      historyHtml += '</div>';
+
+      pdfWrapper.innerHTML = headerHtml + canvasHtml + historyHtml;
+
+      // PDF 導出設定參數
+      var opt = {
+        margin:       [10, 10, 10, 10], // 上右下左 (mm)
+        filename:     'Gemini_學習對話紀錄_' + now.toISOString().slice(0,10) + '.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // 執行輸出
+      html2pdf().set(opt).from(pdfWrapper).save();
+    }
+
+    // HTML 轉義字元輔助函式
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
   </script>
 </body>
